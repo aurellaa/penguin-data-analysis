@@ -5,8 +5,6 @@ date: "2025-02-14"
 ---
 
 # Loading necessary packages
-
-
 library(ggpubr)
 library(palmerpenguins)
 library(skimr)
