@@ -1,0 +1,300 @@
+---
+title: "Exploratory Data Analysis of Penguins Dataset"
+author: 'aurellaa'
+date: "2025-02-14"
+output:
+  pdf_document:
+    latex_engine: xelatex
+  html_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 1. Introduction
+
+The *palmerpenguins* package provides size measurements of three penguin species from the Palmer Archipelago, Antarctica. This project conducts an exploratory data analysis (EDA) on the *penguins* dataset (a simplified version of the raw data) in order to investigate the factors that influence penguin body mass. By identifying predictors of penguin body, this report aims to provide a deeper understanding of penguin morphology and health.
+
+## 2. Data Inspection and Cleaning
+
+### 2.1 Loading Required Libraries
+
+Below is a list of the packages used in this report:
+
+```{r load-packages, echo = TRUE, message = FALSE, warning = FALSE}
+library(palmerpenguins)
+library(ggplot2)
+library(ggpubr)
+library(skimr)
+library(dplyr)
+library(gridExtra)
+library(cowplot)
+```
+
+### 2.2 Inspecting the Dataset
+
+Inspecting the dataset reveals that there are 344 observations for 8 variables: species, island, bill length (mm), bill depth (mm), flipper length (mm), body mass (g), sex, and year. There are three penguin species, "Adelie", "Chinstrap", and "Gentoo", found across the islands "Biscoe", "Dream", and "Torgersen". The observations were recorded within a span of 3 years, from 2007 to 2009.
+
+```{r structure, echo = FALSE}
+str(penguins)
+```
+
+```{r summarystats, echo = FALSE}
+summary(penguins)
+```
+
+The uneven number of observations per species should be taken into consideration when interpreting statistical analyses, with Adelie penguins being the most represented (152 individuals) and Chinstrap penguins the least (52 individuals). This imbalance in sample size may influence results.
+
+It should also be noted that there are some missing values, which may have arisen due to incomplete data collection during fieldwork. Environmental factors, for instance, may have posed a difficulty for researchers to measure certain variables consistently. The missing values in sex may be due to challenges in visually distinguishing female and male penguins.
+
+The following shows all of the missing values present:
+
+```{r all_nas, echo = FALSE}
+colSums(is.na(penguins))
+```
+
+### 2.3 Handling Missing Values
+
+Omission of missing values may impose bias on the results of the statistical analyses.
+
+```{r omit-na, echo = TRUE}
+penguins_clean <- na.omit(penguins)
+```
+
+## 3. Descriptive Statistics
+
+### 3.1 Overall Summary
+
+Summary statistics are computed for the clean data.
+
+```{r clean_summary, echo = TRUE}
+summary(penguins_clean)
+```
+
+```{r skim, echo = TRUE}
+skim(penguins_clean)
+```
+
+### 3.2 Summary Statistics by Species
+
+The summary statistics are further broken down by species to examine the morphological differences between Adelie, Chinstrap, and Gentoo penguins. Differences in average body mass, bill length, bill depth, and flipper length may reflect species-specific adaptations to their respective habitats. This comparison helps assess whether species characteristics could be potential predictors of body mass.
+
+```{r summarystats-byspec, echo = TRUE}
+penguins_clean |>
+  group_by(species) |>
+  summarize(
+    avg_body_mass = mean(body_mass_g),
+    avg_bill_length = mean(bill_length_mm),
+    avg_bill_depth = mean(bill_depth_mm),
+    avg_flipper_length = mean(flipper_length_mm)
+  )
+```
+
+The results suggest that there are distinct morphological differences among the three species. Gentoo penguins have the highest average body mass and flipper length, while Chinstrap penguins have the longest average bill length. In contrast, Gentoo penguins have the lowest average bill depth, whereas Adelie and Chinstrap penguins have similar values for this trait.
+
+## 4. Exploratory Data Visualisations
+
+```{r global-theme, echo = FALSE}
+theme_set(
+  theme_classic()
+)
+```
+
+### 4.1 Frequency Distribution
+
+The frequency distribution of categorical variables are visualised to further analyse and compare the distribution of data as well as identify any outliers.
+
+#### 4.1.1 Species Distribution
+
+```{r barchart-freqdis, echo = TRUE}
+# Bar chart showing the count of each species
+freqspecies <- ggplot(penguins_clean, aes(x = species, fill = species)) + 
+  geom_bar(color = "black", show.legend = FALSE) +
+  labs(title = "Frequency of Species",
+       x = "Species",
+       y = "Count")
+
+# Faceted bar chart displaying species distribution across islands
+freqspecies_byisland <- ggplot(penguins_clean, aes(x = species, fill = species)) +
+  geom_bar(color = "black") +
+  facet_wrap( ~ island) +
+  labs(title = "Species Distribution by Island",
+       x = "Species", 
+       y = "Count") + 
+  theme(axis.text.x = element_text(angle=65, vjust=0.6))
+
+# Plotting both bar charts onto a grid
+plot_grid(freqspecies, freqspecies_byisland, labels = c("A", "B"), ncol = 2, nrow = 1)
+```
+
+As mentioned previously, there is a higher count of Adelie penguins than Gentoo and Chinstrap penguins.
+
+It can be observed that Gentoo penguins are only found on Biscoe island, whereas Chinstrap penguins are only found on Dream island, and Adelie penguins are found on all three islands; Biscoe, Dream, and Torgensen.
+
+#### 4.1.2 Sex Distribution by Species
+
+```{r barchart-bysex, echo = FALSE}
+# Bar chart showing the count of male and female penguins per species
+ggplot(penguins_clean, aes(x = sex, fill = sex)) +
+  geom_bar(color = "black") +
+  facet_wrap( ~ species) +
+  labs(title = "Sex Distribution by Species",
+       x = "Sex", 
+       y = "Count")
+```
+
+Disregarding the missing values, the distribution of male and female penguins in each species is roughly similar, with a slightly higher count of Gentoo males than Gentoo females.
+
+### 4.2 Body Mass Analysis
+
+#### 4.2.1 Average Body Mass by Species and Sex
+
+```{r bar-avgbmbyspecsex, echo = TRUE}
+# Bar chart showing mean body mass for each species, grouped by sex
+ggplot(penguins_clean, aes(x = species, y = body_mass_g, fill = sex)) +
+  geom_bar(stat = "summary", fun = "mean", position = "dodge", color = "black") +
+  labs(
+    title = "Average Body Mass by Species and Sex",
+    x = "Species",
+    y = "Average Body Mass (g)"
+  )
+```
+
+Gentoo penguins have the highest average body mass, while Adelie penguins have the lowest. For all three penguin species, males tend to have a higher body mass than females.
+
+#### 4.2.2 Histogram of Body Mass Distribution
+
+```{r histogram-bm, echo = TRUE, message = FALSE}
+# Histogram of body mass, by species and sex
+ggplot(data = penguins_clean, aes(x = body_mass_g, fill = species)) +
+  geom_histogram(color = "black", bins = 25) +  # Histogram with black outline
+  facet_grid(species ~ sex) +  # Facet by species (rows) and sex (columns) +
+  labs(title = "Body Mass Distribution",
+       x = "Body Mass (g)", 
+       y = "Count") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle=65, vjust=0.6))
+```
+
+***Adelie Penguins***
+
+The distribution of body mass for both females and males appear to be approximately symmetric and unimodal. It is observed that males generally tend to have a slightly higher body mass than females. The peak (which reflects the mode) is well-defined for both sexes.
+
+***Chinstrap Penguins***
+
+The distribution is less symmetric, showing slight right-skewness particularly for males. The range of the body mass of Chinstrap penguins is concentrated in a narrower range compared to the other two species. Similar to Adelie penguins, the males tend to have a higher body mass than females.\
+\
+***Gentoo Penguins***
+
+The distribution is approximately normal and unimodal. It is evident that there is a broader range and spread in the data compared to the other two species. Males are significantly heavier than females.
+
+#### 4.2.3 Boxplots of Body Mass Distribution
+
+```{r box-bm, echo = TRUE}
+
+# Boxplot showing body mass distribution across species
+box_bm_byspec <- ggplot(penguins_clean, aes(x = species, y = body_mass_g, fill = species)) + 
+  stat_boxplot(geom ='errorbar') +
+  geom_boxplot() +
+  labs(title = "Boxplot of Distribution of Body Mass (g) by Species",
+       x = "Species",
+       y = "Body Mass (g)")
+
+# Boxplot showing body mass distribution across sex
+box_bm_bysex <- ggplot(penguins_clean, aes(x = sex, y = body_mass_g, fill = sex)) + 
+  stat_boxplot(geom ='errorbar') +
+  geom_boxplot() +
+  labs(title = "Boxplot of Distribution of Body Mass (g) by Sex",
+       x = "Sex",
+       y = "Body Mass (g)")
+
+# Plotting both box plots onto a grid
+plot_grid(box_bm_byspec, box_bm_bysex, labels = c("A", "B"), ncol = 2, nrow = 1)
+
+
+```
+
+***By Species***
+
+From figure A, it is quite evident that the median body mass of Gentoo penguins is the greatest compared to the other two, which values are identical.
+
+Gentoo penguins also have the highest interquartile range, followed by Adelie penguins and Chinstrap penguins. Additionally, Gentoo penguins exhibit the greatest interquartile range, indicating a higher degree of variability in body mass within this species. Two outliers are present in the distribution of body mass of Chinstrap penguins.
+
+***By Sex***
+
+Figure B shows that female penguins tend to have a lower median body mass compared to males. Male penguins have a wider spread of body mass, with a higher median and a larger interquartile range, indicating greater variability in body mass compared to females.
+
+Both data body mass for males and females appear to be right-skewed, as indicated by the longer upper whiskers and the positioning of the median closer to the lower quartile.
+
+### 5. Correlation Analysis
+
+```{r corranalysis, echo = FALSE}
+
+# Computing correlation coefficients between body mass and numerical variables
+cor_table <- data.frame(
+  Relationship = c("Body Mass and Bill Length", "Body Mass and Bill Depth", "Body Mass and Flipper Length"),
+  Correlation = c(cor(penguins_clean$body_mass_g, penguins_clean$bill_length_mm, use = "complete.obs"),
+  cor(penguins_clean$body_mass_g, penguins_clean$bill_depth_mm, use = "complete.obs"),
+  cor(penguins_clean$body_mass_g, penguins_clean$flipper_length_mm, use = "complete.obs"))
+)
+
+print(cor_table)
+
+```
+
+A strong positive correlation (0.87) is observed between body mass and flipper length, suggesting that as flipper length increases, body mass tends to increase.
+
+A moderate positive correlation (0.59) is seen between body mass and bill length, suggesting that as bill length increases, body mass tends to increase. Bill length may be a secondary predictor of body mass.
+
+A negative correlation (-0.47) exists between body mass and bill depth, suggesting that as bill depth increases, body mass tends to decrease.
+
+Based on these findings, it would be valuable to conduct a scatterplot analysis to examine the relationship between bill length and body mass, as well as flipper length and body mass, since these two variables exhibited the strongest correlations among the three measured traits.
+
+### 6. Scatterplot Analysis
+
+The below scatterplot visualises the relationship between body mass and bill length for the three penguin species, separated by sex.
+
+Across all species, there is a positive correlation evident: as bill length increases, body mass also tends to increase. However, the strength of this relationship is seen to vary among species. The correlation for Adelie penguins in particular appears to be weaker, due to the points being more scattered and the trend lines being less steep. The strongest positive correlation is observed in Gentoo penguins, where the trend line is steeper compared to the other species, suggesting that bill length is a stronger predictor of body mass for this species.
+
+As noted from previous plots, males tend to be heavier than females – although this is most evident in Gentoo penguins.
+
+```{r scatter1, echo = TRUE, message = FALSE}
+# Scatterplots visualizing relationships between Body Mass vs. Flipper Length
+# Body Mass vs. Bill Length
+ggplot(penguins_clean, aes(x = bill_length_mm, y = body_mass_g, color = species)) +
+  geom_point(alpha = 0.7) + 
+  geom_smooth(method = lm) +
+  facet_grid(sex ~ species) +
+  labs(title = "Body Mass (g) against Bill Length (mm)",
+       x = "Bill Length (mm)",
+       y = "Body Mass (g)") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle=65, vjust=0.6))
+
+```
+
+The below scatterplot visualises the relationship between body mass and flipper length for the three penguin species, separated by sex.
+
+There is a strong positive correlation between flipper length and body mass across all species. Penguins with longer flippers tend to have higher body mass. As highlighted by the higher correlation, the relationship appears stronger compared to bill length, suggesting that flipper length is a better predictor of body mass.
+
+```{r scatter2, echo = TRUE, message = FALSE}
+# Body Mass vs. Flipper Length by Species and Sex
+ggplot(penguins_clean, aes(x = flipper_length_mm, y = body_mass_g, color = species)) +
+  geom_point(alpha = 0.7) + 
+  geom_smooth(method = lm) +
+  facet_grid(sex ~ species) +
+  labs(title = "Body Mass (g) against Flipper Length (mm)",
+       x = "Flipper Length (mm)",
+       y = "Body Mass (g)") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle=65, vjust=0.6))
+
+```
+
+### 7. Citation
+
+```{r citation, echo = FALSE}
+citation("palmerpenguins")
+```
